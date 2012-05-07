@@ -1,0 +1,25 @@
+=head1 Nagios and Icinga plugins
+
+
+
+=head2 check_domain
+
+The plugin checks domain expiration date and alerts if:
+
+=over
+
+=item *
+
+domain is expired
+
+=item *
+
+domain will expire in B<warnings> days (WARNING)
+
+=item *
+
+domain will expire in B<critical> days (CRITICAL)
+
+=back
+
+=cut
