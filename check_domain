@@ -1,0 +1,93 @@
+#!/usr/bin/perl
+
+use warnings;
+use strict;
+
+use utf8;
+use open qw(:std :utf8);
+
+# use Net::Whois::Raw;
+use Net::Whois::Parser;
+use Nagios::Plugin;
+use Date::Parse;
+
+my $np = new Nagios::Plugin(
+    usage   => "Usage: %s -H host [ -C days ] [ -W days ]"
+);
+
+$np->add_arg(
+    spec        => 'warning|W=i',
+    help        => '-w|--warning <level> (days)',
+    default     => 30,
+);
+
+
+$np->add_arg(
+    spec        => 'critical|C=i',
+    help        => '-c|--critical <level> (days)',
+    default     => 10,
+);
+
+$np->add_arg(
+    spec        => 'host|H=s',
+    help        => '-H|--host <hostname>',
+    required    => 1
+);
+
+$np->getopts;
+
+my $whois = parse_whois domain => $np->opts->host;
+
+my $date_to = $whois->{paid_till} || $whois->{expiration_date};
+
+my $parsed_date_to = str2time $date_to;
+
+$np->nagios_exit( UNKNOWN, "Can't parse whois for " . $np->opts->host )
+    unless $parsed_date_to;
+
+$np->nagios_exit( CRITICAL, "Domain is expired: " . $np->opts->host )
+    unless $parsed_date_to > time;
+
+my $days_left = int ( ( $parsed_date_to - time ) / ( 3600 * 24 ) );
+
+$np->nagios_exit( CRITICAL,
+    "Domain " . $np->opts->host . " will expire in $days_left days"
+) if $days_left < $np->opts->critical;
+
+$np->nagios_exit( WARNING,
+    sprintf "Domain will expire after %s days on %s",
+        $days_left,
+        $date_to
+) if $days_left < $np->opts->warning;
+
+$np->nagios_exit( OK, "Domain isn't expired: $days_left days left" );
+
+=head1 NAME
+
+check_domain - check expiration date for domain (nagios plugin)
+
+=head1 SYNOPSIS
+
+ check_domain -H host [ -C critical ] [ -W warning ]
+
+=head1 DESCRIPTION
+
+The plugin checks domain expiration date and alerts if:
+
+=over
+
+=item *
+
+domain is expired
+
+=item *
+
+domain will expire in B<warnings> days (WARNING)
+
+=item *
+
+domain will expire in B<critical> days (CRITICAL)
+
+=back
+
+=cut
