@@ -32,12 +32,20 @@ pod2usage unless GetOptions(
     'verbose|v'     => \my $verbose,
 );
 
-pod2usage if $help or !$password or !$login or !$to or !$message;
+pod2usage if $help or !$password or !$login or !$to;
 $from ||= 'nagios service';
 
 my @to = split /\s*[,;]\s*/, $to;
 
-my $json = JSON::XS->new->utf8(0)->encode( {
+if ($message) {
+    $message = eval { decode utf8 => $message } || $message;
+} else {
+    $message = '';
+    binmode STDIN => 'utf8';
+    $message .= $_ while <STDIN>;
+}
+
+my $json = JSON::XS->new->utf8->encode( {
         send_message    => [
             map {
                 {
@@ -125,7 +133,7 @@ Your password to send SMS.
 
 Your login to send SMS.
 
-=item message <text of message>
+=item message|m <text of message>
 
 Your SMS-message.
 
