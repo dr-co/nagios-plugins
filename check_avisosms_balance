@@ -24,9 +24,7 @@ sub try_load_module($) {
 }
 
 BEGIN {
-    try_load_module 'Net::Whois::Parser';
     try_load_module 'Nagios::Plugin';
-    try_load_module 'Date::Parse';
     try_load_module 'LWP::UserAgent';
     try_load_module 'HTTP::Request';
     try_load_module 'JSON::XS';
