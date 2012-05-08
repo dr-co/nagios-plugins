@@ -6,10 +6,25 @@ use strict;
 use utf8;
 use open qw(:std :utf8);
 
-# use Net::Whois::Raw;
-use Net::Whois::Parser;
-use Nagios::Plugin;
-use Date::Parse;
+
+sub try_load_module($) {
+    my $module = shift;
+
+    eval "require $module";
+    if ($@) {
+    	print "DOMAIN UNKNOWN - Can't load module $module, ",
+    	    "perhaps it isn't installed\n$@";
+    	exit 3;
+    }
+
+    $module->import;
+}
+
+BEGIN {
+    try_load_module 'Net::Whois::Parser';
+    try_load_module 'Nagios::Plugin';
+    try_load_module 'Date::Parse';
+}
 
 my $np = new Nagios::Plugin(
     usage   => "Usage: %s -H host [ -C days ] [ -W days ]"
@@ -35,6 +50,7 @@ $np->add_arg(
 );
 
 $np->getopts;
+
 
 my $whois = parse_whois domain => $np->opts->host;
 
