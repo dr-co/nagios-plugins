@@ -25,10 +25,14 @@ domain will expire in B<critical> days (CRITICAL)
 
 =head2 check_avisosms_balance
 
-The plugin checks SMS balance on L<avisosms.ru> service.
+The plugin checks SMS balance on L<http://avisosms.ru> service.
 
 =head2 avisosms
 
-The script sends SMS through L<avisosms.ru> service.
+The script sends SMS through L<http://avisosms.ru> service.
+
+=head2 check_lanport
+
+The script checks balance on L<http://lanport.ru>.
 
 =cut
