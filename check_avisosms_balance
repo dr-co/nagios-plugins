@@ -33,7 +33,7 @@ BEGIN {
 use constant SMSURI => 'http://api.avisosms.ru/sms/json/1';
 
 my $np = new Nagios::Plugin(
-    usage   => "Usage: %s -H host [ -C days ] [ -W days ]",
+    usage   => "Usage: %s -H host [ -C RUB ] [ -W RUB ]",
     version => $VERSION,
     url     => 'https://github.com/unera/nagios-plugins',
     license =>
