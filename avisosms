@@ -135,7 +135,8 @@ Your login to send SMS.
 
 =item message|m <text of message>
 
-Your SMS-message.
+Your SMS-message. If You don't use the option Your message will be read from
+B<STDIN>.
 
 =item verbose|v
 
