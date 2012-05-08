@@ -1,0 +1,110 @@
+#!/usr/bin/perl
+
+use warnings;
+use strict;
+
+use utf8;
+use open qw(:std :utf8);
+
+our $VERSION = '0.01';
+
+use Encode qw(encode decode);
+
+sub try_load_module($) {
+    my $module = shift;
+
+    eval "require $module";
+    if ($@) {
+    	print "DOMAIN UNKNOWN - Can't load module $module, ",
+    	    "perhaps it isn't installed\n$@";
+    	exit 3;
+    }
+
+    $module->import;
+}
+
+BEGIN {
+    try_load_module 'Nagios::Plugin';
+    try_load_module 'LWP::UserAgent';
+    try_load_module 'HTTP::Request';
+}
+
+use constant STATURI => 'http://stat.lanport.ru';
+
+my $np = new Nagios::Plugin(
+    usage   => "Usage: %s -H host [ -C rub ] [ -W rub ]",
+    version => $VERSION,
+    url     => 'https://github.com/unera/nagios-plugins',
+    license =>
+        "This program is free software, you can redistribute it and/or\n".
+        "modify it under the terms of the Artistic License."
+);
+
+$np->add_arg(
+    spec        => 'warning|W=i',
+    help        => '-w|--warning <level> (RUB)',
+    default     => 250,
+);
+
+
+$np->add_arg(
+    spec        => 'critical|C=i',
+    help        => '-c|--critical <level> (RUB)',
+    default     => 100,
+);
+
+
+$np->getopts;
+
+
+my $req = HTTP::Request->new(GET => STATURI);
+my $res = LWP::UserAgent->new->request( $req );
+
+unless ($res->code ~~ 200) {
+    $np->nagios_exit(UNKNOWN, "Can't get stat.lanport.ru: http_code=" .
+        ($res->code // 'undef')
+    );
+}
+
+my $content = $res->decoded_content;
+for ($content) {
+    s/&nbsp;/ /gs;
+    s/\s+/ /gs;
+    s{</?b>}{}g;
+}
+
+my ($sum) = $content =~ m{Состояние счёта:\s*</td>\s*<td>\s*(-?\s*\d+)};
+
+$np->nagios_exit(UNKNOWN,
+    "Can't get lanport balance\n" .
+    decode utf8 => $res->as_string
+) unless defined $sum;
+
+$np->nagios_exit(CRITICAL, "Too low balance on Lanport:  $sum rub")
+    if $sum < $np->opts->critical;
+$np->nagios_exit(WARNING, "Low balance on Lanport:  $sum rub")
+    if $sum < $np->opts->warning;
+$np->nagios_exit(OK, "Lanport balance: $sum rub");
+
+
+=head1 NAME
+
+check_domain - check L<http://lanport.ru> balance (nagios plugin)
+
+=head1 SYNOPSIS
+
+ check_lanport  [ -C critical ] [ -W warning ]
+
+=head1 DESCRIPTION
+
+The plugin checks B<lanport.ru> balance. It can be started only inside
+Lanport network.
+
+=head1 COPYRIGHT
+
+ Copyright (C) 2011 Dmitry E. Oboukhov <unera@debian.org>
+ Copyright (C) 2011 Roman V. Nikolaev <rshadow@rambler.ru>
+
+ This program is free software, you can redistribute it and/or
+ modify it under the terms of the Artistic License.
+

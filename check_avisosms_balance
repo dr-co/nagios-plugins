@@ -105,7 +105,7 @@ $np->nagios_exit(OK, "AvisoSMS balance: $balance RUB");
 
 =head1 NAME
 
-check_domain - check expiration date for domain (nagios plugin)
+check_domain - check L<http://avisosms.ru> balance.
 
 =head1 SYNOPSIS
 
@@ -113,7 +113,7 @@ check_domain - check expiration date for domain (nagios plugin)
 
 =head1 DESCRIPTION
 
-The plugin checks B<avisosms.ru> balance.
+The plugin checks L<http://avisosms.ru> balance.
 
 =head1 COPYRIGHT
 
