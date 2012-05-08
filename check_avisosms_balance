@@ -1,0 +1,128 @@
+#!/usr/bin/perl
+
+use warnings;
+use strict;
+
+use utf8;
+use open qw(:std :utf8);
+
+our $VERSION = '0.01';
+
+use Encode qw(encode decode);
+
+sub try_load_module($) {
+    my $module = shift;
+
+    eval "require $module";
+    if ($@) {
+    	print "DOMAIN UNKNOWN - Can't load module $module, ",
+    	    "perhaps it isn't installed\n$@";
+    	exit 3;
+    }
+
+    $module->import;
+}
+
+BEGIN {
+    try_load_module 'Net::Whois::Parser';
+    try_load_module 'Nagios::Plugin';
+    try_load_module 'Date::Parse';
+    try_load_module 'LWP::UserAgent';
+    try_load_module 'HTTP::Request';
+    try_load_module 'JSON::XS';
+}
+
+use constant SMSURI => 'http://api.avisosms.ru/sms/json/1';
+
+my $np = new Nagios::Plugin(
+    usage   => "Usage: %s -H host [ -C days ] [ -W days ]",
+    version => $VERSION,
+    url     => 'https://github.com/unera/nagios-plugins',
+    license =>
+        "This program is free software, you can redistribute it and/or\n".
+        "modify it under the terms of the Artistic License."
+);
+
+$np->add_arg(
+    spec        => 'warning|W=i',
+    help        => '-w|--warning <level> (RUB)',
+    default     => 50,
+);
+
+
+$np->add_arg(
+    spec        => 'critical|C=i',
+    help        => '-c|--critical <level> (RUB)',
+    default     => 10,
+);
+
+$np->add_arg(
+    spec        => 'login|l=s',
+    help        => 'Your avisosms login',
+    required    => 1
+);
+
+$np->add_arg(
+    spec        => 'password|p=s',
+    help        => 'Your avisosms password',
+    required    => 1
+);
+
+$np->getopts;
+
+
+my $json = JSON::XS->new->utf8(0)->encode({
+    get_sms_balance => [],
+    username        => $np->opts->login,
+    password        => $np->opts->password,
+});
+
+
+my $req = HTTP::Request->new(POST => SMSURI, undef, $json );
+my $res = LWP::UserAgent->new->request(
+    HTTP::Request->new(POST => SMSURI, undef, $json . "\n\n\n" )
+);
+
+my $resp = eval {
+    JSON::XS->new->utf8->decode($res->content) ||
+    decode_json($res->content) 
+};
+
+
+unless ('HASH' eq ref $resp) {
+    $np->nagios_exit(UNKNOWN, 
+        sprintf "Can't get balance\n%s\n\n%s\n\n%s",
+            $@,
+            decode(utf8 => $req->as_string),
+            decode utf8 => $res->as_string
+    );
+}
+
+my $balance = $resp->{sms_balance} || 0;
+
+$np->nagios_exit(CRITICAL, "Too low balance on AvisoSMS service: $balance")
+    unless $balance > $np->opts->critical;
+$np->nagios_exit(WARNING, "Low balance on AvisoSMS service: $balance")
+    unless $balance > $np->opts->warning;
+
+$np->nagios_exit(OK, "AvisoSMS balance: $balance RUB");
+
+=head1 NAME
+
+check_domain - check expiration date for domain (nagios plugin)
+
+=head1 SYNOPSIS
+
+ check_avisosms_balance -l login -p password [ -C critical ] [ -W warning ]
+
+=head1 DESCRIPTION
+
+The plugin checks B<avisosms.ru> balance.
+
+=head1 COPYRIGHT
+
+ Copyright (C) 2011 Dmitry E. Oboukhov <unera@debian.org>
+ Copyright (C) 2011 Roman V. Nikolaev <rshadow@rambler.ru>
+
+ This program is free software, you can redistribute it and/or
+ modify it under the terms of the Artistic License.

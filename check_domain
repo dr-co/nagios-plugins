@@ -6,6 +6,7 @@ use strict;
 use utf8;
 use open qw(:std :utf8);
 
+our $VERSION = '0.02';
 
 sub try_load_module($) {
     my $module = shift;
@@ -27,7 +28,12 @@ BEGIN {
 }
 
 my $np = new Nagios::Plugin(
-    usage   => "Usage: %s -H host [ -C days ] [ -W days ]"
+    usage   => "Usage: %s -H host [ -C days ] [ -W days ]",
+    version => $VERSION,
+    url     => 'https://github.com/unera/nagios-plugins',
+    license =>
+        "This program is free software, you can redistribute it and/or\n".
+        "modify it under the terms of the Artistic License."
 );
 
 $np->add_arg(

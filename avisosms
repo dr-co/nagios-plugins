@@ -1,0 +1,139 @@
+#!/usr/bin/perl
+
+use warnings;
+use strict;
+
+use utf8;
+use open qw(:std :utf8);
+
+use JSON::XS;
+use LWP::UserAgent;
+use HTTP::Request;
+use Encode qw(encode decode);
+
+use constant SMSURI => 'http://api.avisosms.ru/sms/json/1';
+use constant OK         => 0;
+use constant WARNING    => 1;
+use constant CRITICAL   => 2;
+use constant UNKNOWN    => 3;
+use constant DEPENDENT  => 4;
+
+use Getopt::Long;
+use Pod::Usage;
+use Data::Dumper;
+
+pod2usage unless GetOptions(
+    'help|h'        => \my $help,
+    'from|f=s'      => \my $from,
+    'to|t=s'        => \my $to,
+    'password|p=s'  => \my $password,
+    'login|l=s'     => \my $login,
+    'message|m=s'   => \my $message,
+    'verbose|v'     => \my $verbose,
+);
+
+pod2usage if $help or !$password or !$login or !$to or !$message;
+$from ||= 'nagios service';
+
+my @to = split /\s*[,;]\s*/, $to;
+
+my $json = JSON::XS->new->utf8(0)->encode( {
+        send_message    => [
+            map {
+                {
+                    destination_address     => $_,
+                    source_address          => $from,
+                    message                 => $message,
+                }
+            } @to
+        ],
+        username    => $login,
+        password    => $password,
+    }
+);
+
+
+my $ua = LWP::UserAgent->new;
+
+
+my $req = HTTP::Request->new(POST => SMSURI, undef, $json );
+my $res = LWP::UserAgent->new->request(
+    HTTP::Request->new(POST => SMSURI, undef, $json )
+);
+
+my $resp = eval {
+    JSON::XS->new->utf8->decode($res->content) ||
+    decode_json($res->content) 
+};
+
+
+unless ('HASH' eq ref $resp) {
+    print "AVISOSMS CRITICAL - Can't send message\n",
+        decode utf8 => $res->as_string
+    ;
+    exit CRITICAL;
+}
+
+unless ($resp->{status} ~~ 'OK_Operation_Completed') {
+    print "AVISOSMS CRITICAL - Can't send message\n",
+        decode utf8 => $res->as_string
+    ;
+    exit CRITICAL;
+}
+
+print "AVISOSMS OK - message was sent\n" if $verbose;
+exit OK;
+
+
+=head1 NAME
+
+avisosms - a script to send SMS by B<avisosms.ru> service.
+
+=head1 SYNOPSIS
+
+    perl avisosms --from Nagios --to +7123456789 --message "test"   \
+        --password  MYSECRET    \
+        --login     MYLOGIN
+
+=head1 DESCRIPTION
+
+The script sends SMS by B<avisosms.ru>. It returns non-zero errorcode
+if an error was happened.
+
+
+=head1 OPTIONS
+
+=over
+
+=item help|h
+
+Showes the helpscreen.
+
+=item from|f <string>
+
+From string for SMS.
+
+=item to|t <phone>
+
+Target phone. (If You want to use several phones, use comma or semicolon).
+
+=item password|p <service password>
+
+Your password to send SMS.
+
+=item login|l <service login>
+
+Your login to send SMS.
+
+=item message <text of message>
+
+Your SMS-message.
+
+=item verbose|v
+
+Show diagnostic messages
+
+=back
+
+=cut
+
